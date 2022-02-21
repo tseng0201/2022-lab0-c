@@ -5,6 +5,10 @@
 #include "harness.h"
 #include "queue.h"
 
+#ifndef strlcpy
+#define strlcpy(dst, src, sz) snprintf((dst), (sz), "%s", (src))
+#endif
+
 /* Notice: sometimes, Cppcheck would find the potential NULL pointer bugs,
  * but some of them cannot occur. You can suppress them by adding the
  * following line.
@@ -15,13 +19,43 @@
  * Create empty queue.
  * Return NULL if could not allocate space.
  */
+
+typedef struct {
+    int count;
+    struct list_head group;
+} q_head;
+
+typedef struct {
+    char *data;
+    struct list_head group;
+} q_member;
+
 struct list_head *q_new()
 {
-    return NULL;
+    q_head *temp = malloc(sizeof(q_head));
+    temp->count = 0;
+    INIT_LIST_HEAD(&temp->group);
+    return &temp->group;
 }
 
 /* Free all storage used by queue */
-void q_free(struct list_head *l) {}
+void q_free(struct list_head *l)
+{
+    if (!l) {
+        return;
+    }
+
+    struct list_head *temp = l->next;
+    while (l != temp) {
+        l->next = temp->next;
+        free(container_of(temp, q_member, group)->data);
+        free(container_of(temp, q_member, group));
+        temp = l->next;
+    }
+
+    free(container_of(l, q_head, group));
+    return;
+}
 
 /*
  * Attempt to insert element at head of queue.
@@ -30,8 +64,23 @@ void q_free(struct list_head *l) {}
  * Argument s points to the string to be stored.
  * The function must explicitly allocate space and copy the string into it.
  */
+
 bool q_insert_head(struct list_head *head, char *s)
 {
+    if (!head) {
+        return 0;
+    }
+    q_member *temp_member = malloc(sizeof(q_member));
+    if (!temp_member) {
+        return 0;
+    }
+    int count = 0;
+    for (; s[count]; count++) {
+    };
+    temp_member->data = malloc(count + 1 * sizeof(char));
+    strlcpy(temp_member->data, s, count + 1);
+    list_add(&temp_member->group, head);
+    container_of(head, q_head, group)->count += 1;
     return true;
 }
 
@@ -44,6 +93,20 @@ bool q_insert_head(struct list_head *head, char *s)
  */
 bool q_insert_tail(struct list_head *head, char *s)
 {
+    if (!head) {
+        return false;
+    }
+    q_member *temp_member = malloc(sizeof(q_member));
+    if (!temp_member) {
+        return false;
+    }
+    int count = 0;
+    for (; s[count]; count++) {
+    };
+    temp_member->data = malloc(count + 1 * sizeof(char));
+    strlcpy(temp_member->data, s, count + 1);
+    list_add_tail(&temp_member->group, head);
+    container_of(head, q_head, group)->count += 1;
     return true;
 }
 
@@ -91,7 +154,10 @@ void q_release_element(element_t *e)
  */
 int q_size(struct list_head *head)
 {
-    return -1;
+    if (!head) {
+        return 0;
+    }
+    return container_of(head, q_head, group)->count;
 }
 
 /*
@@ -138,7 +204,19 @@ void q_swap(struct list_head *head)
  * (e.g., by calling q_insert_head, q_insert_tail, or q_remove_head).
  * It should rearrange the existing ones.
  */
-void q_reverse(struct list_head *head) {}
+void q_reverse(struct list_head *head)
+{
+    if (!head || list_empty(head)) {
+        return;
+    }
+    struct list_head *temp = head;
+    do {
+        struct list_head *t = temp->next;
+        temp->next = temp->prev;
+        temp->prev = t;
+        temp = temp->prev;
+    } while (temp != head);
+}
 
 /*
  * Sort elements of queue in ascending order
