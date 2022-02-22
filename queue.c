@@ -22,20 +22,16 @@
 
 typedef struct {
     int count;
-    struct list_head group;
+    struct list_head list;
 } q_head;
 
-typedef struct {
-    char *data;
-    struct list_head group;
-} q_member;
 
 struct list_head *q_new()
 {
     q_head *temp = malloc(sizeof(q_head));
     temp->count = 0;
-    INIT_LIST_HEAD(&temp->group);
-    return &temp->group;
+    INIT_LIST_HEAD(&temp->list);
+    return &temp->list;
 }
 
 /* Free all storage used by queue */
@@ -48,12 +44,12 @@ void q_free(struct list_head *l)
     struct list_head *temp = l->next;
     while (l != temp) {
         l->next = temp->next;
-        free(container_of(temp, q_member, group)->data);
-        free(container_of(temp, q_member, group));
+        free(list_entry(temp, element_t, list)->value);
+        free(list_entry(temp, element_t, list));
         temp = l->next;
     }
 
-    free(container_of(l, q_head, group));
+    free(list_entry(l, q_head, list));
     return;
 }
 
@@ -68,19 +64,19 @@ void q_free(struct list_head *l)
 bool q_insert_head(struct list_head *head, char *s)
 {
     if (!head) {
-        return 0;
+        return false;
     }
-    q_member *temp_member = malloc(sizeof(q_member));
+    element_t *temp_member = malloc(sizeof(element_t));
     if (!temp_member) {
-        return 0;
+        return false;
     }
     int count = 0;
     for (; s[count]; count++) {
     };
-    temp_member->data = malloc(count + 1 * sizeof(char));
-    strlcpy(temp_member->data, s, count + 1);
-    list_add(&temp_member->group, head);
-    container_of(head, q_head, group)->count += 1;
+    temp_member->value = malloc(count + 1 * sizeof(char));
+    strlcpy(temp_member->value, s, count + 1);
+    list_add(&temp_member->list, head);
+    list_entry(head, q_head, list)->count += 1;
     return true;
 }
 
@@ -96,17 +92,17 @@ bool q_insert_tail(struct list_head *head, char *s)
     if (!head) {
         return false;
     }
-    q_member *temp_member = malloc(sizeof(q_member));
+    element_t *temp_member = malloc(sizeof(element_t));
     if (!temp_member) {
         return false;
     }
     int count = 0;
     for (; s[count]; count++) {
     };
-    temp_member->data = malloc(count + 1 * sizeof(char));
-    strlcpy(temp_member->data, s, count + 1);
-    list_add_tail(&temp_member->group, head);
-    container_of(head, q_head, group)->count += 1;
+    temp_member->value = malloc(count + 1 * sizeof(char));
+    strlcpy(temp_member->value, s, count + 1);
+    list_add_tail(&temp_member->list, head);
+    list_entry(head, q_head, list)->count += 1;
     return true;
 }
 
@@ -126,7 +122,16 @@ bool q_insert_tail(struct list_head *head, char *s)
  */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head)) {
+        return NULL;
+    }
+    element_t *temp = list_entry(head->next, element_t, list);
+    list_del(head->next);
+    if (sp) {
+        strlcpy(sp, temp->value, bufsize);
+    }
+    list_entry(head, q_head, list)->count -= 1;
+    return temp;
 }
 
 /*
@@ -135,7 +140,16 @@ element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
  */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head)) {
+        return NULL;
+    }
+    element_t *temp = list_entry(head->prev, element_t, list);
+    list_del(head->prev);
+    if (sp) {
+        strlcpy(sp, temp->value, bufsize);
+    }
+    list_entry(head, q_head, list)->count -= 1;
+    return temp;
 }
 
 /*
@@ -157,7 +171,7 @@ int q_size(struct list_head *head)
     if (!head) {
         return 0;
     }
-    return container_of(head, q_head, group)->count;
+    return list_entry(head, q_head, list)->count;
 }
 
 /*
@@ -171,6 +185,19 @@ int q_size(struct list_head *head)
 bool q_delete_mid(struct list_head *head)
 {
     // https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/
+    if (!head || list_empty(head)) {
+        return false;
+    }
+    int n = list_entry(head, q_head, list)->count-- / 2;
+    // list_entry(head, q_head, list)->count -= 1;
+    struct list_head *ptr = head->next;
+    while (n--) {
+        ptr = ptr->next;
+    }
+    list_del(ptr);
+    free(list_entry(ptr, element_t, list)->value);
+    free(list_entry(ptr, element_t, list));
+
     return true;
 }
 
@@ -180,8 +207,8 @@ bool q_delete_mid(struct list_head *head)
  * Return true if successful.
  * Return false if list is NULL.
  *
- * Note: this function always be called after sorting, in other words,
- * list is guaranteed to be sorted in ascending order.
+ * Note: this function always be called after sorting, in other words,Goes back
+ * to a NULL queue list is guaranteed to be sorted in ascending order.
  */
 bool q_delete_dup(struct list_head *head)
 {
