@@ -325,7 +325,24 @@ void q_reverse(struct list_head *head)
  * cite from
  * https://hackmd.io/@sysprog/c-linked-list#%E6%A1%88%E4%BE%8B%E6%8E%A2%E8%A8%8E-LeetCode-21-Merge-Two-Sorted-Lists
  */
-
+struct list_head *merge_two_list(struct list_head *q_1, struct list_head *q_2)
+{
+    if (!q_1 || !q_2)
+        return (struct list_head *) ((__UINTPTR_TYPE__) q_1 |
+                                     (__UINTPTR_TYPE__) q_2);
+    struct list_head *head = NULL, **ptr = &head, **node;
+    for (node = NULL; q_1 && q_2; *node = (*node)->next) {
+        node = (strcmp(list_entry(q_1, element_t, list)->value,
+                       list_entry(q_2, element_t, list)->value) <= 0)
+                   ? &q_1
+                   : &q_2;
+        *ptr = *node;
+        ptr = &(*ptr)->next;
+    }
+    *ptr =
+        (struct list_head *) ((__UINTPTR_TYPE__) q_1 | (__UINTPTR_TYPE__) q_2);
+    return head;
+}
 struct list_head *list_mergesort(struct list_head *head)
 {
     if (!head || !head->next) {
