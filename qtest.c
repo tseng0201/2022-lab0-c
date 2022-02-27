@@ -681,7 +681,58 @@ static bool do_swap(int argc, char *argv[])
     show_queue(3);
     return !error_check();
 }
+/*
+ * Random shuffle by using Fisher-Yates Algorithm
+ * No effect if a is NULL or empty. In addition, if q has only one
+ * element, do nothing.
+ */
+typedef struct {
+    int count;
+    struct list_head list;
+} q_head;
+void q_shuffle(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head)) {
+        return;
+    }
+    int count = list_entry(head, q_head, list)->count;
+    struct list_head *last = head->prev;
+    for (; count > 1; count--) {
+        int need_change = rand() % count;
+        struct list_head *ptr = head->next;
+        for (; need_change > 0; need_change--) {
+            ptr = ptr->next;
+        }
+        char *temp = list_entry(last, element_t, list)->value;
+        list_entry(last, element_t, list)->value =
+            list_entry(ptr, element_t, list)->value;
+        list_entry(ptr, element_t, list)->value = temp;
+        last = last->prev;
+    }
+    return;
+}
 
+static bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    if (!l_meta.l)
+        report(3, "Warning: Try to access null queue");
+    error_check();
+
+    set_noallocate_mode(true);
+    if (exception_setup(true))
+        q_shuffle(l_meta.l);
+    exception_cancel();
+
+    set_noallocate_mode(false);
+
+    show_queue(3);
+    return !error_check();
+}
 static bool is_circular()
 {
     struct list_head *cur = l_meta.l->next;
@@ -795,6 +846,8 @@ static void console_init()
         dedup, "                | Delete all nodes that have duplicate string");
     ADD_COMMAND(swap,
                 "                | Swap every two adjacent nodes in queue");
+    ADD_COMMAND(shuffle,
+                "                | Random shuufle node value in queue");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
